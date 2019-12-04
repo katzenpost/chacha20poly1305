@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"git.schwanenlied.me/yawning/chacha20.git"
 	"git.schwanenlied.me/yawning/poly1305.git"
+	"github.com/katzenpost/chacha20"
 )
 
 const (
@@ -70,7 +70,7 @@ func (a *ChaCha20Poly1305) init(nonce []byte) (*chacha20.Cipher, *poly1305.Poly1
 	var polyKey [32]byte
 	defer memwipe(polyKey[:])
 
-	c, err := chacha20.NewCipher(a.key[:], nonce)
+	c, err := chacha20.New(a.key[:], nonce)
 	if err != nil {
 		panic("chacha20poly1305: failed to initialize chacha20: " + err.Error())
 	}
