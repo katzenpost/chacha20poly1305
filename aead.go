@@ -21,7 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"git.schwanenlied.me/yawning/poly1305.git"
+	"golang.org/x/crypto/poly1305"
 	"github.com/katzenpost/chacha20"
 )
 
@@ -33,7 +33,7 @@ const (
 	NonceSize = chacha20.INonceSize
 
 	// Overhead is the tag length in bytes (16 bytes, 128 bits).
-	Overhead = poly1305.Size
+	Overhead = poly1305.TagSize
 )
 
 var (
@@ -60,7 +60,7 @@ func (a *ChaCha20Poly1305) Overhead() int {
 	return Overhead
 }
 
-func (a *ChaCha20Poly1305) init(nonce []byte) (*chacha20.Cipher, *poly1305.Poly1305) {
+func (a *ChaCha20Poly1305) init(nonce []byte) (*chacha20.Cipher, *poly1305.MAC) {
 	if len(nonce) != a.NonceSize() {
 		panic("chacha20poly1305: len(nonce) != NonceSize()")
 	}
@@ -77,10 +77,7 @@ func (a *ChaCha20Poly1305) init(nonce []byte) (*chacha20.Cipher, *poly1305.Poly1
 	c.KeyStream(polyKey[:])
 	c.Seek(1) // Set the initial counter to 1 in preparation for payload.
 
-	m, err := poly1305.New(polyKey[:])
-	if err != nil {
-		panic("chacha20poly1305: failed to initialize poly1305: " + err.Error())
-	}
+	m := poly1305.New(&polyKey)
 
 	return c, m
 }
@@ -92,7 +89,6 @@ func (a *ChaCha20Poly1305) init(nonce []byte) (*chacha20.Cipher, *poly1305.Poly1
 func (a *ChaCha20Poly1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	c, m := a.init(nonce)
 	defer c.Reset()
-	defer m.Clear()
 
 	// Next, the ChaCha20 encryption function is called to encrypt the
 	// plaintext, using the same key and nonce, and with the initial
@@ -157,7 +153,6 @@ func (a *ChaCha20Poly1305) Open(dst, nonce, ciphertext, additionalData []byte) (
 
 	c, m := a.init(nonce)
 	defer c.Reset()
-	defer m.Clear()
 
 	// Derive the tag based on the data received, and validate.
 	m.Write(additionalData)
